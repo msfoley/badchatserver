@@ -3,9 +3,10 @@
 
 #include <stdint.h>
 
+#define ARGS_DEFAULT_CONFIG_FILE "config.so"
+
 struct arguments {
-    const char *addr;
-    uint16_t port;
+    const char *config_file;
     int log_level;
 };
 

@@ -5,12 +5,14 @@
 #include <signal.h>
 #include <time.h>
 
+#include "config.h"
 #include "args.h"
 #include "log.h"
 
 int main(int argc, char **argv) {
     int ret;
     struct arguments args;
+    struct config *conf;
 
     ret = parse_arguments(argc, argv, &args);
     if (ret) {
@@ -19,6 +21,11 @@ int main(int argc, char **argv) {
     }
 
     log_init(LOG_INVALID_FD, 0, args.log_level);
+
+    ret = config(args.config_file, &conf);
+    if (ret) {
+        return ret;
+    }
 
     return 0;
 }
