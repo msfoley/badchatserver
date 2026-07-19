@@ -284,7 +284,6 @@ static ssize_t load_elf_internal(struct elf *elf, const char *symbol, struct loa
                     goto err;
                 }
 
-                Elf64_Shdr *target_shdr = get_sh(elf, shdr->sh_info);
                 for (size_t j = 0; j < shdr->sh_size; j += shdr->sh_entsize) {
                     Elf64_Rela *rela = MAP_TO_BYTE_OFFSET(elf->buf, shdr->sh_offset + j);
 
@@ -295,13 +294,14 @@ static ssize_t load_elf_internal(struct elf *elf, const char *symbol, struct loa
                             *ptr = ((uint64_t) l->buf) + rela->r_addend;
                             break;
                         }
+                        case R_X86_64_GLOB_DAT:
                         case R_X86_64_JUMP_SLOT:
                         {
                             uint64_t *ptr = MAP_TO_BYTE_OFFSET(l->buf, rela->r_offset);
                             uint64_t sym_addr;
                             int r = get_reloc_symbol_addr(elf, shdr, ELF64_R_SYM(rela->r_info), &sym_addr);
                             if (r) {
-                                Elf64_Shdr *symtab = get_sh(elf, target_shdr->sh_link);
+                                Elf64_Shdr *symtab = get_sh(elf, shdr->sh_link);
                                 Elf64_Sym *sym;
 
                                 ret = -r;
@@ -311,9 +311,16 @@ static ssize_t load_elf_internal(struct elf *elf, const char *symbol, struct loa
                                 } else {
                                     log_err("Couldn't resolve symbol\n");
                                 }
+
+                                // Try our best to resolve GLOB_DAT symbols, but they don't seem
+                                // present/all that necessary
+                                if (ELF64_R_TYPE(rela->r_info) == R_X86_64_GLOB_DAT) {
+                                    break;
+                                }
+
                                 goto err;
                             }
-                            *ptr = sym_addr;
+                            *ptr = sym_addr + rela->r_addend;
                             break;
                         }
                         default:

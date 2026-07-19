@@ -32,14 +32,16 @@ GNUTLS_CFLAGS := $(shell pkg-config gnutls --cflags)
 GNUTLS_LDFLAGS := $(shell pkg-config gnutls --libs)
 
 CFLAGS := $(OPT_CFLAGS) $(GNUTLS_CFLAGS) -I$(BLD_DIR) -I$(INC_DIR) -I$(SRC_DIR)/common -std=gnu23
-LDFLAGS := $(GNUTLS_LDFLAGS) -lsodium -ldl
+LDFLAGS := $(GNUTLS_LDFLAGS) -lsodium -ldl -export-dynamic
 
 BUILD_HEADER := $(BLD_DIR)/build.h
 BUILD_HEADER_GEN := $(BLD_DIR)/build_gen.h
 
-.PHONY: all clean server_config
+.PHONY: all clean server_config server
 
-all: $(BLD_DIR)/$(SERVER_TARGET)
+all: server
+
+server: server_config $(BLD_DIR)/$(SERVER_TARGET)
 
 server_config: $(CONF_DIR)/server_config.so
 

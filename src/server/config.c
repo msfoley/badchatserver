@@ -157,7 +157,7 @@ ssize_t config(const char *conf_file, struct config **conf) {
     }
 
     if (WIFEXITED(wstatus)) {
-        ret = WEXITSTATUS(wstatus);
+        ret = (int8_t) WEXITSTATUS(wstatus);
         if (ret < 0) {
             log_err("%s:%d - child process exited with %d (%s)\n", __func__, __LINE__, -ret, strerror(-ret));
             goto memfd_err;

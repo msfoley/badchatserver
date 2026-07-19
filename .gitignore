@@ -1,1 +1,3 @@
 build/
+conf/*.o
+conf/*.so
