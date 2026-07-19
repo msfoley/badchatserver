@@ -19,7 +19,7 @@ static const char args_doc[] = "";
 static const struct argp_option options[] = {
     { "verbose", 'v', 0, 0, "Be verbose" },
     { "quiet", 'q', 0, 0, "Be quiet" },
-    { "config", 'c', 0, 0, "Configuration file" },
+    { "config", 'c', "CONFIG_FILE", 0, "Configuration file" },
     { 0 }
 };
 

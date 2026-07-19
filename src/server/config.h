@@ -3,6 +3,6 @@
 
 #include <server/lib_config.h>
 
-int config(const char *conf_file, struct config **conf);
+ssize_t config(const char *conf_file, struct config **conf);
 
 #endif

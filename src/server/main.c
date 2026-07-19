@@ -5,12 +5,15 @@
 #include <signal.h>
 #include <time.h>
 
+#include <sys/mman.h>
+#include <common/load_elf.h>
 #include "config.h"
 #include "args.h"
 #include "log.h"
 
 int main(int argc, char **argv) {
     int ret;
+    ssize_t sret;
     struct arguments args;
     struct config *conf;
 
@@ -22,10 +25,11 @@ int main(int argc, char **argv) {
 
     log_init(LOG_INVALID_FD, 0, args.log_level);
 
-    ret = config(args.config_file, &conf);
-    if (ret) {
+    sret = config(args.config_file, &conf);
+    if (sret < 0) {
         return ret;
     }
 
+    log_info("Bindaddr: \"%s\", port: %u\n", conf->bind_addr, conf->port);
     return 0;
 }

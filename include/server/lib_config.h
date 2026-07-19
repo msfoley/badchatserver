@@ -9,6 +9,7 @@ struct config {
     uint16_t port;
 };
 
+typedef ssize_t (*lib_config_t)(int);
 ssize_t badchatserver_lib_config(int fd);
 
 #endif

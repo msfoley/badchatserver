@@ -31,7 +31,7 @@ endif
 GNUTLS_CFLAGS := $(shell pkg-config gnutls --cflags)
 GNUTLS_LDFLAGS := $(shell pkg-config gnutls --libs)
 
-CFLAGS := $(OPT_CFLAGS) $(GNUTLS_CFLAGS) -I$(BLD_DIR) -I$(INC_DIR) -I$(SRC_DIR)/common
+CFLAGS := $(OPT_CFLAGS) $(GNUTLS_CFLAGS) -I$(BLD_DIR) -I$(INC_DIR) -I$(SRC_DIR)/common -std=gnu23
 LDFLAGS := $(GNUTLS_LDFLAGS) -lsodium -ldl
 
 BUILD_HEADER := $(BLD_DIR)/build.h
@@ -44,7 +44,7 @@ all: $(BLD_DIR)/$(SERVER_TARGET)
 server_config: $(CONF_DIR)/server_config.so
 
 $(CONF_DIR)/server_config.o: $(CONF_DIR)/server_config.c
-	$(CC) $(OPT_CFLAGS) -I$(INC_DIR) -c $(CONF_DIR)/server_config.c -o $(CONF_DIR)/server_config.o
+	$(CC) $(OPT_CFLAGS) -fPIC -I$(INC_DIR) -c $(CONF_DIR)/server_config.c -o $(CONF_DIR)/server_config.o
 
 $(CONF_DIR)/server_config.so: $(CONF_DIR)/server_config.o
 	$(CC) $(OPT_CFLAGS) -shared $(CONF_DIR)/server_config.o -o $(CONF_DIR)/server_config.so
