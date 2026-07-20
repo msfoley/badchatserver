@@ -7,7 +7,7 @@
 
 #include <unistd.h>
 
-#include "log.h"
+#include <common/log.h>
 
 struct log_internal_state {
     int fd;

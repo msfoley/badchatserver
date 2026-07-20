@@ -6,3 +6,12 @@
 
 #include <gnutls/gnutls.h>
 #include <unistd.h>
+
+#include <common/log.h>
+#include "config.h"
+
+int con_main(struct config *conf) {
+    int sock;
+
+    return 0;
+}

@@ -5,7 +5,7 @@
 
 struct config {
     size_t total_size;
-    const char *bind_addr;
+    char *bind_addr;
     uint16_t port;
 };
 

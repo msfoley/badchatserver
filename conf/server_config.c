@@ -35,7 +35,7 @@ ssize_t badchatserver_lib_config(int fd) {
 
     conf = (struct config *) map;
     conf->total_size = len;
-    conf->bind_addr = (const char *) sizeof(*conf);
+    conf->bind_addr = (char *) sizeof(*conf);
     conf->port = PORT;
     memcpy(map + sizeof(*conf), bind_addr, len - sizeof(*conf));
 

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 
 #include <dlfcn.h>
 #include <unistd.h>
@@ -14,7 +15,7 @@
 #include <sys/mman.h>
 #include <elf.h>
 
-#include <log.h>
+#include <common/log.h>
 #include <common/load_elf.h>
 
 // Internal structure used for processing an ELF file
@@ -64,7 +65,6 @@ static Elf64_Shdr *get_sh(struct elf *elf, size_t num) {
 
 // Get the symidx symbol from symtab
 static Elf64_Sym *get_symbol(struct elf *elf, Elf64_Shdr *symtab, size_t symidx) {
-    Elf64_Sym *sym;
     off_t offset;
     size_t symcnt;
 
@@ -118,7 +118,6 @@ static int get_reloc_symbol_addr(struct elf *elf, Elf64_Shdr *shdr, size_t symid
     Elf64_Sym *sym;
     const char *symname;
     char *symname_copy, *dlsym_args[2];
-    off_t offset;
     void *symbol_ptr;
 
     if (!elf || !shdr || !symbol_addr) {
@@ -167,6 +166,8 @@ static int get_reloc_symbol_addr(struct elf *elf, Elf64_Shdr *shdr, size_t symid
 static Elf64_Sym *get_symbol_by_name(struct elf *elf, const char *name) {
     for (size_t i = 0; i < elf->shnum; i++) {
         Elf64_Shdr *shdr = get_sh(elf, i);
+        // shdr is unlinkely to be NULL
+        assert(shdr);
 
         if (shdr->sh_type != SHT_SYMTAB) {
             continue;
@@ -213,6 +214,11 @@ static ssize_t load_elf_internal(struct elf *elf, const char *symbol, struct loa
     for (size_t i = 0; i < elf->shnum; i++) {
         Elf64_Shdr *shdr = get_sh(elf, i);
         Elf64_Shdr *shstrtab = get_sh(elf, elf->hdr->e_shstrndx);
+        // shdr is unlinkely to be NULL
+        assert(shdr);
+        if (!shstrtab) {
+            continue;
+        }
         const char *secname = MAP_TO_BYTE_OFFSET(elf->buf, shstrtab->sh_offset + shdr->sh_name);
         log_debug("Section header %zu \"%s\" (%p) type %d\n", i, secname, (void *) ((uintptr_t) shdr - (uintptr_t) elf->buf), shdr->sh_type);
     }
@@ -221,6 +227,8 @@ static ssize_t load_elf_internal(struct elf *elf, const char *symbol, struct loa
     // Get the total size necessary to allocate
     for (size_t i = 0; i < elf->shnum; i++) {
         Elf64_Shdr *shdr = get_sh(elf, i);
+        // shdr is unlinkely to be NULL
+        assert(shdr);
 
         if (shdr->sh_size == 0) {
             continue;
@@ -229,6 +237,11 @@ static ssize_t load_elf_internal(struct elf *elf, const char *symbol, struct loa
         if ((shdr->sh_addr + shdr->sh_size) > l->len) {
             l->len = shdr->sh_addr + shdr->sh_size;
         }
+    }
+
+    // Align alloc size to page size for reasons (C11 undefined behavior if not?)
+    if (l->len % getpagesize()) {
+        l->len += getpagesize() - (l->len % getpagesize());
     }
 
     l->buf = aligned_alloc(getpagesize(), l->len);
@@ -241,6 +254,8 @@ static ssize_t load_elf_internal(struct elf *elf, const char *symbol, struct loa
     // Zero out NOBITS sections, copy PROGBITS sections
     for (size_t i = 0; i < elf->shnum; i++) {
         Elf64_Shdr *shdr = get_sh(elf, i);
+        // shdr is unlinkely to be NULL
+        assert(shdr);
 
         if (shdr->sh_size == 0) {
             continue;
@@ -266,6 +281,10 @@ static ssize_t load_elf_internal(struct elf *elf, const char *symbol, struct loa
     // Relocate?
     for (size_t i = 0; i < elf->shnum; i++) {
         Elf64_Shdr *shdr = get_sh(elf, i);
+
+        // shdr is unlinkely to be NULL
+        assert(shdr);
+
         switch (shdr->sh_type) {
             case SHT_REL:
                 log_err("SHT_REL section encountered. Not sure what to do\n");
@@ -307,9 +326,17 @@ static ssize_t load_elf_internal(struct elf *elf, const char *symbol, struct loa
                                 ret = -r;
                                 if (symtab) {
                                     sym = get_symbol(elf, symtab, ELF64_R_SYM(rela->r_info));
-                                    log_err("Couldn't resolve symbol %s\n", get_symbol_name(elf, symtab, sym));
+                                    if (ELF64_R_TYPE(rela->r_info) == R_X86_64_GLOB_DAT) {
+                                        log_debug("Couldn't resolve symbol %s\n", get_symbol_name(elf, symtab, sym));
+                                    } else {
+                                        log_err("Couldn't resolve symbol %s\n", get_symbol_name(elf, symtab, sym));
+                                    }
                                 } else {
-                                    log_err("Couldn't resolve symbol\n");
+                                    if (ELF64_R_TYPE(rela->r_info) == R_X86_64_GLOB_DAT) {
+                                        log_debug("Couldn't resolve symbol\n");
+                                    } else {
+                                        log_err("Couldn't resolve symbol\n");
+                                    }
                                 }
 
                                 // Try our best to resolve GLOB_DAT symbols, but they don't seem
@@ -363,7 +390,6 @@ err:
 
 // Get the number of entries in the section header table
 static ssize_t get_shnum(struct elf *elf) {
-    ssize_t ret;
     Elf64_Shdr *shdr;
 
     if (!elf) {
@@ -395,7 +421,6 @@ static ssize_t get_shnum(struct elf *elf) {
 
 // Get the number of entries in the program header table
 static ssize_t get_phnum(struct elf *elf) {
-    ssize_t ret;
     Elf64_Shdr *shdr;
 
     if (!elf) {
@@ -559,7 +584,6 @@ ssize_t load_elf_fd(int fd, const char *symbol, struct load_elf **le) {
     struct stat st;
     ssize_t ret;
     void *map;
-    Elf32_Ehdr *header32;
 
     if (!symbol || !le || fd < 0) {
         return -EINVAL;

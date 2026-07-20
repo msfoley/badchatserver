@@ -31,8 +31,15 @@ endif
 GNUTLS_CFLAGS := $(shell pkg-config gnutls --cflags)
 GNUTLS_LDFLAGS := $(shell pkg-config gnutls --libs)
 
-CFLAGS := $(OPT_CFLAGS) $(GNUTLS_CFLAGS) -I$(BLD_DIR) -I$(INC_DIR) -I$(SRC_DIR)/common -std=gnu23
+CFLAGS := $(OPT_CFLAGS) $(GNUTLS_CFLAGS) -I$(BLD_DIR) -I$(INC_DIR) -I$(SRC_DIR)/common -std=gnu23 -Wall
 LDFLAGS := $(GNUTLS_LDFLAGS) -lsodium -ldl -export-dynamic
+
+ifneq ($(strip $(DEBUG)),)
+CFLAGS += -DDEBUG
+endif
+ifneq ($(strip $(ANALYZE)),)
+CFLAGS += -fanalyzer
+endif
 
 BUILD_HEADER := $(BLD_DIR)/build.h
 BUILD_HEADER_GEN := $(BLD_DIR)/build_gen.h
@@ -41,7 +48,7 @@ BUILD_HEADER_GEN := $(BLD_DIR)/build_gen.h
 
 all: server
 
-server: server_config $(BLD_DIR)/$(SERVER_TARGET)
+server: $(CONF_DIR)/server_config.so $(BLD_DIR)/$(SERVER_TARGET)
 
 server_config: $(CONF_DIR)/server_config.so
 

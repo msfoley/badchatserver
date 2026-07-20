@@ -6,9 +6,9 @@
 #include <argp.h>
 #include <unistd.h>
 
+#include <common/log.h>
 #include <build.h>
 #include "args.h"
-#include "log.h"
 
 static const char program_version[] = PROGRAM_NAME_SERVER " " PROGRAM_VERSION;
 static const char program_bug_address[] = PROGRAM_BUG_ADDRESS;
@@ -25,7 +25,6 @@ static const struct argp_option options[] = {
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     struct arguments *arguments = state->input;
-    char *endptr;
     int ret;
 
     switch (key) {

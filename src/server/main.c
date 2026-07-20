@@ -7,12 +7,13 @@
 
 #include <sys/mman.h>
 #include <common/load_elf.h>
+#include <common/log.h>
 #include "config.h"
 #include "args.h"
-#include "log.h"
+#include "con.h"
 
 int main(int argc, char **argv) {
-    int ret;
+    int ret = 0;
     ssize_t sret;
     struct arguments args;
     struct config *conf;
@@ -27,9 +28,16 @@ int main(int argc, char **argv) {
 
     sret = config(args.config_file, &conf);
     if (sret < 0) {
-        return ret;
+        return -sret;
     }
 
     log_info("Bindaddr: \"%s\", port: %u\n", conf->bind_addr, conf->port);
-    return 0;
+    ret = con_main(conf);
+    if (ret) {
+        goto err;
+    }
+
+err:
+    free(conf);
+    return ret;
 }
