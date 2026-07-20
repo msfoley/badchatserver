@@ -10,16 +10,19 @@
 #include <build.h>
 #include "args.h"
 
-static const char program_version[] = PROGRAM_NAME_SERVER " " PROGRAM_VERSION;
-static const char program_bug_address[] = PROGRAM_BUG_ADDRESS;
+const char *argp_program_version = PROGRAM_NAME_SERVER " " PROGRAM_VERSION;
+const char *argp_program_bug_address = PROGRAM_BUG_ADDRESS;
 
 static const char doc[] = "Chat room server?";
 static const char args_doc[] = "";
 
 static const struct argp_option options[] = {
-    { "verbose", 'v', 0, 0, "Be verbose" },
-    { "quiet", 'q', 0, 0, "Be quiet" },
-    { "config", 'c', "CONFIG_FILE", 0, "Configuration file" },
+    { "help", 'h', 0, 0, "show this message", -1 },
+    { "version", 'V', 0, 0, "show version", -1 },
+    { "usage", 0x123, 0, 0, "show usage", -1 },
+    { "verbose", 'v', 0, 0, "be verbose", 0 },
+    { "quiet", 'q', 0, 0, "be quiet", 0 },
+    { "config", 'c', "CONFIG_FILE", 0, "configuration file", 0 },
     { 0 }
 };
 
@@ -28,6 +31,16 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     int ret;
 
     switch (key) {
+        case 'h':
+            argp_state_help(state, state->out_stream, ARGP_HELP_STD_HELP);
+            break;
+        case 0x123:
+            argp_state_help(state, state->out_stream, ARGP_HELP_USAGE | ARGP_HELP_EXIT_OK);
+            break;
+        case 'V':
+            fprintf(state->out_stream, "%s\n", argp_program_version);
+            exit(0);
+            break;
         case 'v':
             arguments->log_level = LOG_DEBUG;
             break;
@@ -62,7 +75,7 @@ int parse_arguments(int argc, char **argv, struct arguments *arguments) {
     arguments->log_level = LOG_INFO;
     arguments->config_file = ARGS_DEFAULT_CONFIG_FILE;
 
-    ret = argp_parse(&argp, argc, argv, 0, 0, arguments);
+    ret = argp_parse(&argp, argc, argv, ARGP_NO_HELP, 0, arguments);
     if (ret) {
         return ret;
     }

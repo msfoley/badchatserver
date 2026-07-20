@@ -130,11 +130,12 @@ ssize_t config_child(const char *conf_file, int fd) {
     err = load_elf(conf_file, "badchatserver_lib_config", &config_elf);
     if (err < 0) {
         return (int) err;
-    } else if (config_elf->symbol_addr == -1) {
-        return -EINVAL;
     } else if (!config_elf) {
         return -ENOMEM;
+    } else if (config_elf->symbol_addr == -1) {
+        return -EINVAL;
     }
+
     config_func = (lib_config_t) ((uintptr_t) config_elf->buf + config_elf->symbol_addr);
 
     // Limit the number of syscalls available to the child function

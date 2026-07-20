@@ -146,6 +146,9 @@ static int get_reloc_symbol_addr(struct elf *elf, Elf64_Shdr *shdr, size_t symid
 
     dlsym_args[0] = strtok(symname_copy, "@");
     dlsym_args[1] = strtok(NULL, "@");
+
+    // I'm pretty sure strtok with no delimiters present will always at least return non-null for the first call
+    assert(dlsym_args[0]);
     if (dlsym_args[1]) {
         symbol_ptr = dlvsym(RTLD_DEFAULT, dlsym_args[0], dlsym_args[1]);
     } else {

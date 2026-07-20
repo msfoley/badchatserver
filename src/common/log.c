@@ -70,7 +70,6 @@ int log_msg(int level, const char *fmt, ...) {
         }
     }
 
-err:
     free(buf);
 
     return ret;
