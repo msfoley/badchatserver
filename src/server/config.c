@@ -81,40 +81,13 @@ static int do_seccomp(int allowed_fd) {
         return errno;
     }
 
+#ifndef VALGRIND
     ret = syscall(SYS_seccomp, SECCOMP_SET_MODE_FILTER, 0, &prog);
     if (ret) {
         log_err("seccomp failed with %d (%s)\n", errno, strerror(errno));
         return errno;
     }
-
-    return 0;
-}
-
-// Convert a string config struct member from a config relative address to an absolute address
-static int relocate_string(struct config *conf, char **str_ptr) {
-    char *str;
-    char *endptr;
-
-    if (!conf || !str_ptr) {
-        return EINVAL;
-    }
-    str = *str_ptr + (uintptr_t) conf;
-
-    if (((uintptr_t) str_ptr - (uintptr_t) conf) > sizeof(*conf)) {
-        return EINVAL;
-    }
-    if ((uintptr_t) *str_ptr >= conf->total_size) {
-        return ENOMEM;
-    }
-
-    endptr = str;
-    do {
-        if (endptr >= (((char *) conf) + conf->total_size)) {
-            return ENOMEM;
-        }
-        endptr++;
-    } while (*endptr != '\0');
-    *str_ptr = str;
+#endif
 
     return 0;
 }
@@ -162,7 +135,6 @@ ssize_t config(const char *conf_file, struct config **conf) {
     ssize_t ret = 0;
     int fd, wstatus;
     pid_t pid;
-    size_t len, read_count;
 
     fd = memfd_create("config_buf", MFD_ALLOW_SEALING);
     if (fd < 0) {
@@ -182,9 +154,10 @@ ssize_t config(const char *conf_file, struct config **conf) {
     }
 
     if (WIFEXITED(wstatus)) {
-        ret = (int8_t) WEXITSTATUS(wstatus);
-        if (ret < 0) {
-            log_err("%s:%d - child process exited with %d (%s)\n", __func__, __LINE__, -ret, strerror(-ret));
+        ret = WEXITSTATUS(wstatus);
+        if (ret) {
+            log_err("%s:%d - child process exited with %d (%s)\n", __func__, __LINE__, ret, strerror(ret));
+            ret = -ret;
             goto err;
         }
     } else if (WIFSIGNALED(wstatus)) {
@@ -196,43 +169,15 @@ ssize_t config(const char *conf_file, struct config **conf) {
         log_err("%s:%d - child process exited for unknown reason\n", __func__, __LINE__);
         goto err;
     }
-    len = ret;
 
-    *conf = malloc(len);
-    if (!*conf) {
-        ret = -ENOMEM;
+    ret = badchatserver_lib_config_deserialize(fd, conf);
+    if (ret) {
+        ret = -ret;
         goto err;
     }
 
-    // Copy the config from memfd to internal buffer
-    read_count = 0;
-    while (read_count < len) {
-        ssize_t rd = read(fd, *conf + read_count, len - read_count);
-        if (rd < 0) {
-            log_err("Failed to read config %d (%s)\n", errno, strerror(errno));
-            ret = -errno;
-            goto conf_err;
-        }
-        read_count += rd;
-    }
-    if (len != (*conf)->total_size) {
-        log_err("Given buffer length (%zu) does not match configuration internal size (%zu)\n", len, (*conf)->total_size);
-        goto conf_err;
-    }
+    ret = (*conf)->total_size;
 
-    ret = relocate_string(*conf, &((*conf)->bind_addr));
-    if (ret) {
-        log_err("Failed to relocate config item string \"bind_addr\": %d (%s)\n", ret, strerror(ret));
-        ret = -ret;
-        goto conf_err;
-    }
-
-    ret = len;
-
-conf_err:
-    if (ret < 0) {
-        free(*conf);
-    }
 err:
     close(fd);
     return ret;

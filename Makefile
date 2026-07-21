@@ -40,6 +40,9 @@ endif
 ifneq ($(strip $(ANALYZE)),)
 CFLAGS += -fanalyzer
 endif
+ifneq ($(strip $(VALGRIND)),)
+CFLAGS += -DVALGRIND
+endif
 
 BUILD_HEADER := $(BLD_DIR)/build.h
 BUILD_HEADER_GEN := $(BLD_DIR)/build_gen.h

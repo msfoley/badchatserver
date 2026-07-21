@@ -11,35 +11,19 @@
 #define BINDADDR "0.0.0.0"
 #define PORT 6767
 
-ssize_t badchatserver_lib_config(int fd) {
-    const char *bind_addr = BINDADDR;
-    struct config *conf;
-    size_t len = sizeof(*conf) + strlen(bind_addr) + 1;
-    void *map;
-    int ret;
+struct config conf = {
+    .total_size = 0,
+    .bind_addr = "0.0.0.0",
+    .url = "test.example.com",
+    .port = 6767,
+    .ca = "/etc/ssl/certs/ca-certificates.crt",
+    .key = "conf/server/key.pem",
+    .cert = "conf/server/cert.pem",
+    .crl = "conf/server/crl.pem",
+    .privkey = "conf/server/privkey.pem",
+    .pubkey = "conf/server/pubkey.pem"
+};
 
-    if (fd < 0) {
-        printf("naughty");
-        return 0;
-    }
-
-    ret = ftruncate(fd, len);
-    if (ret < 0) {
-        return -errno;
-    }
-
-    map = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (map == MAP_FAILED) {
-        return -errno;
-    }
-
-    conf = (struct config *) map;
-    conf->total_size = len;
-    conf->bind_addr = (char *) sizeof(*conf);
-    conf->port = PORT;
-    memcpy(map + sizeof(*conf), bind_addr, len - sizeof(*conf));
-
-    munmap(map, len);
-
-    return len;
+int badchatserver_lib_config(int fd) {
+    return badchatserver_lib_config_serialize(&conf, fd);
 }

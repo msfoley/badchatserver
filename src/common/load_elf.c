@@ -113,24 +113,12 @@ static const char *get_symbol_name(struct elf *elf, Elf64_Shdr *symtab, Elf64_Sy
 }
 
 // Given a symbol index and reloc section header, resolve the symbol
-static int get_reloc_symbol_addr(struct elf *elf, Elf64_Shdr *shdr, size_t symidx, uint64_t *symbol_addr) {
-    Elf64_Shdr *symtab;
-    Elf64_Sym *sym;
+static int get_external_symbol_addr(struct elf *elf, Elf64_Shdr *symtab, Elf64_Sym *sym, uint64_t *symbol_addr) {
     const char *symname;
     char *symname_copy, *dlsym_args[2];
     void *symbol_ptr;
 
-    if (!elf || !shdr || !symbol_addr) {
-        return EINVAL;
-    }
-
-    symtab = get_sh(elf, shdr->sh_link);
-    if (!symtab) {
-        return EINVAL;
-    }
-
-    sym = get_symbol(elf, symtab, symidx);
-    if (!sym) {
+    if (!elf || !symtab || !sym || !symbol_addr) {
         return EINVAL;
     }
 
@@ -161,7 +149,6 @@ static int get_reloc_symbol_addr(struct elf *elf, Elf64_Shdr *shdr, size_t symid
     }
 
     *symbol_addr = (uint64_t) symbol_ptr;
-    log_debug("symbol \"%s\" resolved to %p\n", symname, symbol_ptr);
 
     return 0;
 }
@@ -319,37 +306,56 @@ static ssize_t load_elf_internal(struct elf *elf, const char *symbol, struct loa
                         case R_X86_64_GLOB_DAT:
                         case R_X86_64_JUMP_SLOT:
                         {
+                            Elf64_Shdr *symtab;
+                            Elf64_Sym *sym;
+                            const char *symname;
                             uint64_t *ptr = MAP_TO_BYTE_OFFSET(l->buf, rela->r_offset);
                             uint64_t sym_addr;
-                            int r = get_reloc_symbol_addr(elf, shdr, ELF64_R_SYM(rela->r_info), &sym_addr);
-                            if (r) {
-                                Elf64_Shdr *symtab = get_sh(elf, shdr->sh_link);
-                                Elf64_Sym *sym;
 
-                                ret = -r;
-                                if (symtab) {
-                                    sym = get_symbol(elf, symtab, ELF64_R_SYM(rela->r_info));
-                                    if (ELF64_R_TYPE(rela->r_info) == R_X86_64_GLOB_DAT) {
-                                        log_debug("Couldn't resolve symbol %s\n", get_symbol_name(elf, symtab, sym));
-                                    } else {
-                                        log_err("Couldn't resolve symbol %s\n", get_symbol_name(elf, symtab, sym));
-                                    }
-                                } else {
-                                    if (ELF64_R_TYPE(rela->r_info) == R_X86_64_GLOB_DAT) {
-                                        log_debug("Couldn't resolve symbol\n");
-                                    } else {
-                                        log_err("Couldn't resolve symbol\n");
-                                    }
-                                }
-
-                                // Try our best to resolve GLOB_DAT symbols, but they don't seem
-                                // present/all that necessary
-                                if (ELF64_R_TYPE(rela->r_info) == R_X86_64_GLOB_DAT) {
-                                    break;
-                                }
-
+                            symtab = get_sh(elf, shdr->sh_link);
+                            if (!symtab) {
+                                log_err("Couldn't process relocation - invalid symbol table\n");
+                                ret = -EINVAL;
                                 goto err;
                             }
+
+                            sym = get_symbol(elf, symtab, ELF64_R_SYM(rela->r_info));
+                            if (!sym) {
+                                log_err("Couldn't locate symbol for relocation\n");
+                                ret = -EINVAL;
+                                goto err;
+                            }
+
+                            symname = get_symbol_name(elf, symtab, sym);
+                            if (!symname) {
+                                log_err("Couldn't locate name for symbol\n");
+                                ret = -EINVAL;
+                                goto err;
+                            }
+
+                            if (sym->st_shndx == SHN_UNDEF) {
+                                // I think if a symbol is weak and untyped we can probably 
+                                // continue on failure
+                                int weak = ELF64_ST_BIND(sym->st_info) == STB_WEAK;
+                                int notype = ELF64_ST_TYPE(sym->st_info) == STT_NOTYPE;
+
+                                // Undefined symbols here need to be linked externally
+                                ret = get_external_symbol_addr(elf, symtab, sym, &sym_addr);
+                                if (ret && weak && notype) {
+                                    log_debug("Couldn't link symbol \"%s\", trying to continue\n", symname);
+                                    continue;
+                                } else if (ret) {
+                                    log_err("Couldn't link symbol \"%s\"\n", symname);
+                                    ret = -ret;
+                                    goto err;
+                                }
+                            } else if (sym->st_shndx == SHN_COMMON || sym->st_shndx == SHN_ABS) {
+                                // I don't think these types need to be relocated
+                            } else {
+                                sym_addr = ((uintptr_t) l->buf) + sym->st_value;
+                            }
+                            log_debug("symbol \"%s\" resolved to %p\n", symname, sym_addr);
+
                             *ptr = sym_addr + rela->r_addend;
                             break;
                         }
