@@ -33,8 +33,9 @@ struct elf {
 
 #define MAP_TO_BYTE_OFFSET(ptr, off) ((void *) (((uintptr_t) ptr) + off))
 
+__attribute__((unused))
 static Elf64_Phdr *get_ph(struct elf *elf, size_t num) {
-    off_t offset;
+    size_t offset;
 
     if (!elf || num >= elf->phnum) {
         return NULL;
@@ -49,7 +50,7 @@ static Elf64_Phdr *get_ph(struct elf *elf, size_t num) {
 }
 
 static Elf64_Shdr *get_sh(struct elf *elf, size_t num) {
-    off_t offset;
+    size_t offset;
 
     if (!elf || num >= elf->shnum) {
         return NULL;
@@ -65,7 +66,7 @@ static Elf64_Shdr *get_sh(struct elf *elf, size_t num) {
 
 // Get the symidx symbol from symtab
 static Elf64_Sym *get_symbol(struct elf *elf, Elf64_Shdr *symtab, size_t symidx) {
-    off_t offset;
+    size_t offset;
     size_t symcnt;
 
     if (!elf || !symtab) {
@@ -88,7 +89,7 @@ static Elf64_Sym *get_symbol(struct elf *elf, Elf64_Shdr *symtab, size_t symidx)
 // Get the given symbol's name
 static const char *get_symbol_name(struct elf *elf, Elf64_Shdr *symtab, Elf64_Sym *sym) {
     Elf64_Shdr *strtab;
-    off_t offset;
+    size_t offset;
 
     if (!elf || !symtab || !sym) {
         return NULL;
@@ -351,6 +352,7 @@ static ssize_t load_elf_internal(struct elf *elf, const char *symbol, struct loa
                                 }
                             } else if (sym->st_shndx == SHN_COMMON || sym->st_shndx == SHN_ABS) {
                                 // I don't think these types need to be relocated
+                                continue;
                             } else {
                                 sym_addr = ((uintptr_t) l->buf) + sym->st_value;
                             }

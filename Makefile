@@ -31,7 +31,7 @@ endif
 GNUTLS_CFLAGS := $(shell pkg-config gnutls --cflags)
 GNUTLS_LDFLAGS := $(shell pkg-config gnutls --libs)
 
-CFLAGS := $(OPT_CFLAGS) $(GNUTLS_CFLAGS) -I$(BLD_DIR) -I$(INC_DIR) -I$(SRC_DIR)/common -std=gnu23 -Wall
+CFLAGS := $(OPT_CFLAGS) $(GNUTLS_CFLAGS) -I$(BLD_DIR) -I$(INC_DIR) -I$(SRC_DIR)/common -std=gnu23 -Wall -Wextra -Wpedantic
 LDFLAGS := $(GNUTLS_LDFLAGS) -lsodium -ldl -export-dynamic
 
 ifneq ($(strip $(DEBUG)),)
